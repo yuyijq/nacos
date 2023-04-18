@@ -16,25 +16,25 @@
 
 package com.alibaba.nacos.naming.healthcheck.heartbeat;
 
-import com.alibaba.nacos.naming.core.DistroMapper;
+import com.alibaba.nacos.naming.core.v2.client.manager.ClientManagerDelegate;
 import com.alibaba.nacos.sys.utils.ApplicationUtils;
 
 /**
  * Instance responsibility check interceptor.
  *
- * @author gengtuo.ygt
- * on 2021/3/24
+ * @author gengtuo.ygt on 2021/3/24
  */
 public class InstanceBeatCheckResponsibleInterceptor extends AbstractBeatCheckInterceptor {
-
+    
     @Override
     public boolean intercept(InstanceBeatCheckTask object) {
-        return !ApplicationUtils.getBean(DistroMapper.class).responsible(object.getClient().getResponsibleId());
+        final ClientManagerDelegate delegate = ApplicationUtils.getBean(ClientManagerDelegate.class);
+        return !delegate.isResponsibleClient(object.getClient());
     }
-
+    
     @Override
     public int order() {
         return Integer.MIN_VALUE + 2;
     }
-
+    
 }

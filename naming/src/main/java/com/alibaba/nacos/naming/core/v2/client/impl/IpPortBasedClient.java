@@ -50,6 +50,8 @@ public class IpPortBasedClient extends AbstractClient {
     
     private HealthCheckTaskV2 healthCheckTaskV2;
     
+    private volatile boolean isNative;
+    
     public IpPortBasedClient(String clientId, boolean ephemeral) {
         this(clientId, ephemeral, null);
     }
@@ -91,8 +93,8 @@ public class IpPortBasedClient extends AbstractClient {
     
     @Override
     public boolean isExpire(long currentTime) {
-        return isEphemeral() && getAllPublishedService().isEmpty() && currentTime - getLastUpdatedTime() > ClientConfig
-                .getInstance().getClientExpiredTime();
+        return isEphemeral() && getAllPublishedService().isEmpty()
+                && currentTime - getLastUpdatedTime() > ClientConfig.getInstance().getClientExpiredTime();
     }
     
     public Collection<InstancePublishInfo> getAllInstancePublishInfo() {
@@ -147,5 +149,13 @@ public class IpPortBasedClient extends AbstractClient {
         if (null == publishers.put(service, parseToHealthCheckInstance(instance))) {
             MetricsMonitor.incrementInstanceCount();
         }
+    }
+    
+    public boolean isNative() {
+        return this.isNative;
+    }
+    
+    public void setNative(boolean isNative) {
+        this.isNative = isNative;
     }
 }

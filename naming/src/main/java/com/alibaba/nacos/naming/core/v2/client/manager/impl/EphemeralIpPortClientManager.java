@@ -55,10 +55,13 @@ public class EphemeralIpPortClientManager implements ClientManager {
     
     private final DistroMapper distroMapper;
     
+    private final SwitchDomain switchDomain;
+    
     private final ClientFactory<IpPortBasedClient> clientFactory;
     
     public EphemeralIpPortClientManager(DistroMapper distroMapper, SwitchDomain switchDomain) {
         this.distroMapper = distroMapper;
+        this.switchDomain = switchDomain;
         GlobalExecutor.scheduleExpiredClientCleaner(new ExpiredClientCleaner(this, switchDomain), 0,
                 Constants.DEFAULT_HEART_BEAT_INTERVAL, TimeUnit.MILLISECONDS);
         clientFactory = ClientFactoryHolder.getInstance().findClientFactory(ClientConstants.EPHEMERAL_IP_PORT);
@@ -66,23 +69,40 @@ public class EphemeralIpPortClientManager implements ClientManager {
     
     @Override
     public boolean clientConnected(String clientId, ClientAttributes attributes) {
-        return clientConnected(clientFactory.newClient(clientId, attributes));
+        Loggers.SRV_LOG.info("Client connection {} connect", clientId);
+        final IpPortBasedClient ipPortBasedClient = clients.computeIfAbsent(clientId, id -> {
+            final IpPortBasedClient client = clientFactory.newClient(id, attributes);
+            client.init();
+            return client;
+        });
+        ipPortBasedClient.setNative(true);
+        ipPortBasedClient.setLastUpdatedTime();
+        return true;
     }
     
     @Override
     public boolean clientConnected(final Client client) {
-        clients.computeIfAbsent(client.getClientId(), s -> {
-            Loggers.SRV_LOG.info("Client connection {} connect", client.getClientId());
-            IpPortBasedClient ipPortBasedClient = (IpPortBasedClient) client;
-            ipPortBasedClient.init();
-            return ipPortBasedClient;
+        Loggers.SRV_LOG.info("Client connection {} connect", client.getClientId());
+        final IpPortBasedClient ipPortBasedClient = clients.computeIfAbsent(client.getClientId(), s -> {
+            final IpPortBasedClient portBasedClient = (IpPortBasedClient) client;
+            portBasedClient.init();
+            return portBasedClient;
         });
+        ipPortBasedClient.setNative(true);
+        ipPortBasedClient.setLastUpdatedTime();
         return true;
     }
     
     @Override
     public boolean syncClientConnected(String clientId, ClientAttributes attributes) {
-        return clientConnected(clientFactory.newSyncedClient(clientId, attributes));
+        final IpPortBasedClient ipPortBasedClient = clients.computeIfAbsent(clientId, id -> {
+            final IpPortBasedClient client = clientFactory.newSyncedClient(clientId, attributes);
+            client.init();
+            return client;
+        });
+        ipPortBasedClient.setNative(false);
+        ipPortBasedClient.setLastUpdatedTime();
+        return true;
     }
     
     @Override
@@ -114,10 +134,14 @@ public class EphemeralIpPortClientManager implements ClientManager {
     
     @Override
     public boolean isResponsibleClient(Client client) {
-        if (client instanceof IpPortBasedClient) {
-            return distroMapper.responsible(((IpPortBasedClient) client).getResponsibleId());
+        if (!(client instanceof IpPortBasedClient)) {
+            return false;
         }
-        return false;
+        final IpPortBasedClient ipPortBasedClient = (IpPortBasedClient) client;
+        if (!switchDomain.isDistroEnabled()) {
+            return ipPortBasedClient.isNative();
+        }
+        return distroMapper.responsible(ipPortBasedClient.getResponsibleId());
     }
     
     @Override
@@ -172,7 +196,8 @@ public class EphemeralIpPortClientManager implements ClientManager {
         }
         
         private boolean isExpireSubscriberClient(long noUpdatedTime, IpPortBasedClient client) {
-            return client.getAllSubscribeService().isEmpty() || noUpdatedTime > switchDomain.getDefaultPushCacheMillis();
+            return client.getAllSubscribeService().isEmpty()
+                    || noUpdatedTime > switchDomain.getDefaultPushCacheMillis();
         }
     }
 }

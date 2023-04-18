@@ -39,6 +39,7 @@ public class EphemeralIpPortClientFactory implements ClientFactory<IpPortBasedCl
     public IpPortBasedClient newClient(String clientId, ClientAttributes attributes) {
         long revision = attributes.getClientAttribute(REVISION, 0);
         IpPortBasedClient ipPortBasedClient = new IpPortBasedClient(clientId, true, revision);
+        ipPortBasedClient.setNative(true);
         ipPortBasedClient.setAttributes(attributes);
         return ipPortBasedClient;
     }
@@ -47,6 +48,7 @@ public class EphemeralIpPortClientFactory implements ClientFactory<IpPortBasedCl
     public IpPortBasedClient newSyncedClient(String clientId, ClientAttributes attributes) {
         long revision = attributes.getClientAttribute(REVISION, 0);
         IpPortBasedClient ipPortBasedClient = new IpPortBasedClient(clientId, true, revision);
+        ipPortBasedClient.setNative(false);
         ipPortBasedClient.setAttributes(attributes);
         return ipPortBasedClient;
     }
